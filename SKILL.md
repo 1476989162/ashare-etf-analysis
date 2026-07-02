@@ -1,7 +1,7 @@
 ---
 name: ashare-etf-analysis
 description: "A股ETF/指数基金分析框架 — 行情查询、基本面分析、技术面分析、仓位建议。覆盖场内ETF、LOF、跨境ETF。含GitHub自动优化机制。"
-version: 1.4.0
+version: 1.4.2
 author: Agent
 created_by: agent
 platforms: [windows]
