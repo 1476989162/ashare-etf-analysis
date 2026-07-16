@@ -33,10 +33,10 @@
 - [19][20]=卖一价/量, [21][22]=卖二, [23][24]=卖三, [25][26]=卖四, [27][28]=卖五
 - 踩坑：索引43是振幅%不是PB，PB在索引46
 
-### ✅ 腾讯K线 API（web.ifzq.gtimg.cn）
-- 20/20 ETF全部成功返回60日K线
-- 返回前复权数据（qfq）
-- 格式：date, open, close, high, low, volume
+### ✅ 腾讯K线 API
+- **正确端点**：`https://proxy.finance.qq.com/ifzqgtimg/appstock/app/kline/kline?param={symbol},day,,,{days}`（实测 2026-07-10 验证 6 只全成功，返回 `data.{symbol}.day = [[日期,开,收,高,低,量],...]`，不复权）
+- ❌ **废弃端点** `/appstock/app/fqkline/get`（是否带 `qfq` 参数都返回 `{"code":1,"msg":"bad params"}`）
+- ⚠️ **前缀错配静默坑**：proxy 的 kline 端点对错误前缀（如 `sz513730` 应为 `sh513730`）可能**静默返回数据而不报错**，须用实时接口 `qt.gtimg.cn` 交叉校验（错误前缀返回 `v_pv_none_match`）
 
 ### ⚠️ 百度股市通 K线
 - 21只ETF中仅2只返回有效数据，其余空list
