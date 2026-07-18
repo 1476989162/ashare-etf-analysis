@@ -1,30 +1,42 @@
-## v1.5.0 (2026-07-16) — AppData→GitHub 全量同步 + 脚本/参考补全
-
-### 背景
-- GitHub 仓库停留在 v1.4.2（2026-07-02），本地 Hermes AppData 技能已静默更新到 v1.4.10（2026-07-13）大量实战修复未推送，导致下次重新部署/新环境加载时丢失全部改进。
-
-### 同步内容
-- **SKILL.md**: 1.4.2 → 1.5.0（同步 AppData v1.4.10 全部内容，含分析前铁律、趋势>国别重排、数据源诚实原则、趋势优先、用户日期不可信、QDII溢价分析、持仓表缺失处理等）
-- **新增 `scripts/` 目录**（6个脚本，之前 GitHub 完全没有）:
-  - `fund_tool.py` — 统一分析工具（腾讯实时+K线+溢价三级兜底）
-  - `pool_scan.py` — 趋势主导无偏扫描
-  - `trend_scan.py` — 科技赛道趋势排名
-  - `rebound_scan.py` — N日反弹概率批量扫描
-  - `rebound_probability.py` — 单只/批量精细反弹概率
-  - `tencent_quote_kline.py` — 稳健行情+K线探针
-- **新增 10 个 `references/` 文档**: 2026-07-02-trading-session、akshare-and-proxy-notes、bull-bear-regime-test、gbm-point-probability、intraday-range-estimation、qdii-premium-analysis、quant-parameters-index-analysis、rebound-probability-screening、rebound-probability-screening-2026-07-08、zheshang-gold-buy-point
-- **更新 2 个 `references/` 文档**: api-reliability-notes（扩充）、etf-meta-database（维护说明修正）
+## v1.4.12 (2026-07-18) — GBM 肥尾污染 + Cron Job 实战铁律
 
 ### 修复
-- **GitHub 缺失整个 scripts 目录**（严重）: 本地技能通过 Hermes 技能系统加载时能跑 pool_scan.py/trend_scan.py 等脚本，但 GitHub 仓库完全没有这些脚本。任何 `git clone` 部署的新环境都会丧失脚本能力。
-- **references 严重滞后**: GitHub 仅 10 个 reference 文件，AppData 已有 21 个。缺少 akshare-and-proxy-notes、gbm-point-probability 等关键实操文档。
-- **版本号分裂**: SKILL.md 写 1.4.2（GitHub） vs 1.4.10（AppData），无法区分。
-- **CHANGELOG 停在 7 月 2 日**: 7 月 8 日/10 日/13 日的大量实战改进（趋势优先、日期核对、QDII溢价、GBM截断、持仓表缺失处理等）未记录。
+- **GBM 分位数反常检测**: 7日窗 μ 被单日 >5% 肥尾污染时，q84 会小于 q50（完全反常）。新增铁律：必须同时报 20日窗对照、检测 q16<q50<q84，不成立的 7 日窗仅作参考（2026-07-17 实战）
+- **Cron Job 模式 fallback 路径**: `execute_code` 在 cron_mode 下被 block 3次，确定正确路径为 terminal curl + write_file + terminal python
+
+### 新增
+- **脚本**: `scripts/portfolio_monitor.py` — 一键 cron 监控，内置 10 只真实持仓，止损=成本×0.92
+- **参考**: `references/monitoring-thresholds-and-decisions.md` — 跌幅阈值×T型策略矩阵
+- **参考**: `references/gbm-fattail-contamination.md` — GBM 肥尾污染机制详解
+- **参考**: `references/2026-07-17-monitoring-session.md` — 全线普跌典型案例分析
+- **参考**: `references/2026-07-17-close-monitoring.md` — 收盘快照与日内恢复复盘
 
 ### 版本
-- SKILL.md: 1.4.2 → 1.5.0
+- SKILL.md: 1.4.10 → 1.4.12
 
----
+## v1.4.10 (2026-07-13) — 趋势铁律重排 + 无偏扫描
+
+### 修复
+- **趋势>国别铁律重排**: A 股强多头 ETF 不再因"非境外"排除，趋势/动量为第一筛选因子
+- **fund_tool.py 方法论缺陷**: 脚本"买区"基于位置，对强多头会错判博反弹；新铁律要求趋势重判
+- **GBM 概率截断**: 新增 min(100,...) 处理 p_hit_upper/lower >1 的数值溢出
+
+### 新增
+- **脚本**: `scripts/trend_scan.py` — 科技赛道趋势排名，默认无历史约束
+- **参考**: `references/bull-bear-regime-test.md` — 牛熊判定客观回撤测试
+
+### 版本
+- SKILL.md: 1.4.4 → 1.4.10
+
+## v1.4.4 (2026-07-02) — 用户偏好大更新
+
+### 修复
+- **原油/能源 ETF 排除**: 用户明确不敢买 501018/160723/159981
+- **真实持仓来源**: 明确必须从 SQL Server gold 表取数
+- **用户偏好补充**: 优先跨境 ETF、按批次逐笔分析、买卖点位必须配对
+
+### 版本
+- SKILL.md: 1.4.2 → 1.4.4
 
 ## v1.4.2 (2026-07-02) — Bug fix 三连 + 卖出准确率修复
 
