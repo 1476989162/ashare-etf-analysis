@@ -18,7 +18,7 @@ Output: Full monitoring report matching user's 6-item format:
 Strategy: 不认亏卖，做T降本为主.
 
 Compatible with Hermes cron jobs where execute_code is blocked.
-Run via: terminal("python C:/Users/Administrator/scripts/portfolio_monitor.py")
+Run via: terminal("python C:/Users/Administrator/ashare-etf-analysis/scripts/portfolio_monitor.py")
 """
 
 import json
@@ -176,9 +176,9 @@ def compute_analysis(code, quote, portfolio):
         analysis['buy_point'] = f"{bid1:.3f}-{bid1 + 0.005:.3f}"
         analysis['sell_point'] = f"{ask1:.3f}-{ask1 + 0.005:.3f}"
     
-    # Stop loss: 0.92 × cost (用户铁律: 8%止损线)
+    # Stop loss: 成本 × 0.95（用户铁律: 5%无条件清仓线，统一用 0.95 不漂移）
     if cost:
-        analysis['stop_loss'] = round(cost * 0.92, 4)
+        analysis['stop_loss'] = round(cost * 0.95, 4)
     else:
         analysis['stop_loss'] = None
     

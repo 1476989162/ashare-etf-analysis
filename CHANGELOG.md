@@ -1,3 +1,11 @@
+## v1.4.13 (2026-07-28) — 止损口径统一 0.95 + 脚本路径修正
+
+### 修复
+- **止损公式漂移 0.92 → 0.95**: `scripts/portfolio_monitor.py` 使用成本×0.92（8%）与 SKILL.md 铁律（成本×0.95，5%无条件清仓线）不一致。脚本、SKILL.md cron 段、文档注释统一为 `cost × 0.95`，并显式注释锁定值防再漂移
+- **脚本路径**: `portfolio_monitor.py` docstring 中运行命令路径 `C:/Users/Administrator/scripts/` → `C:/Users/Administrator/ashare-etf-analysis/scripts/`（与实际仓库路径一致）
+### 版本
+- SKILL.md: 1.4.12 → 1.4.13（patch: bug fix）
+
 ## v1.4.12 (2026-07-18) — GBM 肥尾污染 + Cron Job 实战铁律
 
 ### 修复

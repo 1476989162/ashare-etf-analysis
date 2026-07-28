@@ -1,8 +1,8 @@
 ---
 name: ashare-etf-analysis
 description: "A股ETF/指数基金分析框架 — 行情查询、基本面分析、技术面分析、仓位建议。覆盖场内ETF、LOF、跨境ETF。含GitHub自动优化机制。"
-version: 1.4.12
-last_updated: 2026-07-18
+version: 1.4.13
+last_updated: 2026-07-28
 author: Agent
 created_by: agent
 platforms: [windows]
@@ -1180,7 +1180,7 @@ ashare-etf-analysis/
 > 📋 国际金价数据源实战：`references/international-gold-data-api.md`（gold-api、Yahoo Finance GC=F、伦敦金/XAUUSD获取方法）
 | 📋 持仓组合实时监控模板：`references/portfolio-monitoring-template.md`（批量持仓盈亏分析、操作优先级排序、腾讯API批量解析代码、Cron Job模式输出模板）
 > 📋 ETF监控跌幅阈值与操作决策树：`references/monitoring-thresholds-and-decisions.md`（跌幅区间×T型策略矩阵、做T价位规则、止损硬律、浮盈保护）
-> 📋 一键监控脚本：`scripts/portfolio_monitor.py`（内置用户真实持仓10只，自动处理51-prefix偏移，cron-ready，止损=成本×0.92）
+> 📋 一键监控脚本：`scripts/portfolio_monitor.py`（内置用户真实持仓10只，自动处理51-prefix偏移，cron-ready，止损=成本×0.95）
 > 📋 2026-07-17 盘中ETF监控分析记录：`references/2026-07-17-monitoring-session.md`（全线普跌典型案例，跌幅快照与操作建议）
 > 📋 2026-07-17 收盘后ETF监控分析记录：`references/2026-07-17-close-monitoring.md`（收盘快照、日内恢复复盘、操作建议实际执行性评估）
 
@@ -1199,7 +1199,7 @@ ashare-etf-analysis/
 - 自动处理腾讯API 51-prefix偏移
 - 按用户6项格式输出（现价/涨跌/浮盈/买卖一/建议/点位/止损/卖点）
 - 深套品种自动调宽买卖区间
-- 止损价 = 成本 × 0.92（用户铁律8%无条件清仓线）
+- 止损价 = 成本 × 0.95（5%无条件清仓线，统一口径）
 
 ```bash
 python C:/Users/Administrator/scripts/portfolio_monitor.py
