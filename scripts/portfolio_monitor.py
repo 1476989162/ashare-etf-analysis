@@ -163,12 +163,19 @@ def compute_analysis(code, quote, portfolio):
     if t_type == '观望':
         analysis['buy_point'] = f"{bid1:.3f}-{bid1 + 0.005:.3f}"
         analysis['sell_point'] = f"{ask1:.3f}-{ask1 + 0.005:.3f}"
-    elif pnl_pct is not None and pnl_pct < -10:
-        # Deep trapped: buy near low, sell at a realistic rebound target (not cost)
+    elif cost is not None and pnl_pct is not None and pnl_pct < -10:
+        # Deep trapped: cost×1.0015 = 保本价; 卖点必须≥保本价（用户铁律）
+        break_even = cost * 1.0015
         analysis['buy_point'] = f"{low:.3f}-{low + 0.005:.3f}"
-        # Sell target: ~5% rebound from current (realistic near-term target)
-        rebound_target = cur * 1.05
-        analysis['sell_point'] = f"{cur * 1.02:.3f}-{rebound_target:.3f}"
+        if break_even > high:
+            # 保本价超出今日高点 → 日内无法保本，只给做T降本区间，标注保本价
+            t_buy = low + 0.002
+            t_sell = min(high, cur * 1.03)
+            analysis['sell_point'] = f"{t_buy:.3f}→{t_sell:.3f}(做T降本)"
+            analysis['break_even'] = break_even
+            analysis['break_even_note'] = f"保本价{break_even:.4f}超出今日高点{high}，日内难以保本，建议分批做T降本"
+        else:
+            analysis['sell_point'] = f"{cur * 1.02:.3f}-{min(break_even, cur * 1.05):.3f}"
     elif t_type == 'T+0':
         analysis['buy_point'] = f"{bid1:.3f}-{bid1 + 0.003:.3f}"
         analysis['sell_point'] = f"{ask1:.3f}-{ask1 + 0.003:.3f}"
