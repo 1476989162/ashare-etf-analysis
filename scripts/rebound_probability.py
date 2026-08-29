@@ -26,7 +26,7 @@ rebound_probability.py — 计算 N 交易日内某基金从当前价反弹 X �
 import subprocess, json, math, sys
 from statistics import NormalDist
 
-API = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={},day,,,120,qfq"
+API = "https://web.ifzq.gtimg.cn/appstock/app/kline/kline?param={},day,,,120"
 
 def fetch_kline(sym):
     url = API.format(sym)
@@ -34,8 +34,9 @@ def fetch_kline(sym):
                          capture_output=True, text=True, timeout=30).stdout
     data = json.loads(out)
     node = data["data"][sym]
-    key = "qfqday" if "qfqday" in node else "day"
-    rows = node[key]
+    rows = node.get("day") or node.get("qfqday") or []
+    if not rows:
+        raise ValueError(f"{sym}: K线数据为空")
     closes = [float(r[2]) for r in rows]
     highs = [float(r[3]) for r in rows]
     return closes, highs
@@ -46,7 +47,7 @@ def analyze(sym, cur, target_abs, days=15):
     rets = [math.log(closes[i] / closes[i - 1]) for i in range(1, n)]
     mu = sum(rets) / len(rets)
     sigma = math.sqrt(sum((r - mu) ** 2 for r in rets) / len(rets))
-    need = target_abs / cur
+    need = math.log((cur + target_abs) / cur)
     muD = mu * days
     sigD = sigma * math.sqrt(days)
     p_close = 1 - NormalDist(muD, sigD).cdf(need)

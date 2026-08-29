@@ -1,3 +1,23 @@
+## v1.4.16 (2026-08-29) — 反弹脚本三处真实Bug修复 + 盘口offset=0落地
+
+### 修复
+- **`rebound_probability.py` / `rebound_scan.py` K线端点失效/silent-error**: 旧URL `/appstock/app/fqkline/get?...,day,,,120,qfq` 被忽略的 `qfq` 参数使脚本退化回静默坏数据路径：当响应无 `qfqday` 时 `rows=[]` → `IndexError`（rebound 直接崩溃），且误发裸 `day,,,120`（无qfq）时端点确实返回 `{"code":1,"msg":"bad params"}`（SKILL.md 已标注）。统一改为 `/appstock/app/kline/kline?param={sym},day,,,120`（实测 code:0），并在 `day`/`qfqday` 双缺失时 `ValueError` 明报而非静默
+- **`need` 量纲错误（SKILL.md 已记录的致命坑，脚本未修）**: 两脚本用 `need = target/cur`（比值）代入 `NormalDist(...).cdf()`，而 μ/σ 是对数收益率——量纲错配导致 z 远超 μ 量级、概率算错。改为 `need = log((cur + target) / cur)`。同时 `need_pct` 改为真实百分比
+- **`rebound_scan.py` GBK 解码崩溃**: 实时行情接口返回 GBK，脚本用 `text=True`（默认UTF-8）导致 `UnicodeDecodeError`、`out` 为 None、后续 `AttributeError`。改为 `.decode("gbk","ignore")`
+- **`portfolio_monitor.py` 51前缀offset bug**: `offset = 1 if parts[0] in ('51','0')` 使 sz15/16/50 系列全部读到量级整数（如 `[8]`=1,851,185）当价格，触发 `ask1<=bid1` 校验失败被丢弃。2026-08-29 实测 10 只 ETF 确认 **offset=0 恒为唯一正确值**（parts[9]=买一价, parts[19]=卖一价）
+- **`portfolio_monitor.py` 卖点锚定错误**: 卖点原锚定买一价（bid1），SKILL.md 早已纠正应锚定卖一价（ask1）；深套卖点原用 `cur×1.02~1.05` 可低于保本价，改为锚定保本价 `cost×1.0015`
+
+### 版本
+- SKILL.md: 1.4.15 → 1.4.16（patch: 3 个脚本真实 bug + 1 个文档未落地）
+
+## v1.4.15 (2026-08-27) — 盘口字段偏移铁律修正
+
+### 修复
+- **SKILL.md 盘口字段偏移铁律重写**: 旧版规则"sz15/16 前缀字段整体右移1位（买一价=`[10]`、卖一价=`[20]`）"经 2026-08-27 实测 10 只 ETF 证伪——含 `parts[0]='51'` 的 sz159326/161226/159865/159126 均确认 `parts[9]`/`parts[19]` 恒为买一/卖一价，`parts[8]`/`parts[18]` 为量。旧 offset 逻辑导致全部 `ask1<=bid1` 校验失败被丢弃。当前 offset=0 为唯一正确值
+
+### 版本
+- SKILL.md: 1.4.14 → 1.4.15（patch: 铁律证伪修正）
+
 ## v1.4.14 (2026-08-19) — 513310缺失修复 + 脚本保本价铁律
 
 ### 修复

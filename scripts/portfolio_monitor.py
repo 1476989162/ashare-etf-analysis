@@ -6,7 +6,7 @@ ETF Portfolio Batch Monitor — Cron-ready script for real-time portfolio tracki
 Usage:
     python portfolio_monitor.py                          # use default portfolio below
     python portfolio_monitor.py --portfolio my_etf.json  # load custom portfolio
-    
+
 Output: Full monitoring report matching user's 6-item format:
     1. Current price, change%, P&L%
     2. Bid1/Ask1
@@ -49,27 +49,29 @@ def parse_tencent_quote(line):
         return None
     code = re.sub(r'^sh|^sz', '', m.group(1))
     parts = m.group(2).split('~')
-    
-    # Detect 51-prefix offset (sz15xxxx/16xxxx codes have extra field at [0])
-    offset = 1 if parts[0] in ('51', '0') else 0
-    
+    # ponytail: qt.gtimg.cn 2026-08-27 实测确认 — 所有 sz/sh 前缀ETF,
+    # parts[9]=买一价, parts[19]=卖一价, 无需 parts[0] 偏移.
+    # 旧版 offset 逻辑(offset=1 if parts[0] in ('51','0'))会偏到 [8]/[18]=量级整数,
+    # 导致 sz15/16/50 系列全部报"ask1<=bid1"被丢弃 (159326/161226/159865/159126).
+    # 升级路径: 若腾讯改API字段顺序, 恢复偏移检测; 当前 offset=0 是唯一正确值.
+
     try:
         current = float(parts[3])
         prev_close = float(parts[4])
         high = float(parts[33])
         low = float(parts[34])
         change_pct = float(parts[32])
-        bid1 = float(parts[9 + offset])
-        ask1 = float(parts[19 + offset])
-        bid1_qty = int(float(parts[8 + offset]))
-        ask1_qty = int(float(parts[18 + offset]))
-        
+        bid1 = float(parts[9])
+        ask1 = float(parts[19])
+        bid1_qty = int(float(parts[8]))
+        ask1_qty = int(float(parts[18]))
+
         # Cross-validation
         if not (low <= current <= high):
             raise AssertionError(f"current {current} not in [{low}, {high}]")
         if not (ask1 > bid1):
             raise AssertionError(f"ask1 {ask1} <= bid1 {bid1}")
-        
+
         return {
             'code': code,
             'name': parts[1],
@@ -94,7 +96,7 @@ def fetch_quotes(codes_str):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         raw = resp.read().decode('gbk', 'ignore')
-    
+
     result = {}
     for line in raw.strip().split(';'):
         line = line.strip()
@@ -117,7 +119,7 @@ def compute_analysis(code, quote, portfolio):
     ask1 = quote['ask1']
     low = quote['low']
     high = quote['high']
-    
+
     analysis = {
         'code': code,
         'name': p['name'],
@@ -131,7 +133,7 @@ def compute_analysis(code, quote, portfolio):
         'high': high,
         'low': low,
     }
-    
+
     if cost and shares > 0:
         pnl_pct = (cur - cost) / cost * 100
         pnl_amt = (cur - cost) * shares
@@ -141,7 +143,7 @@ def compute_analysis(code, quote, portfolio):
     else:
         analysis['pnl_pct'] = None
         analysis['pnl_amt'] = None
-    
+
     # Suggestion logic: 不认亏卖，做T降本
     if t_type == '观望':
         analysis['suggestion'] = '观望'
@@ -158,8 +160,8 @@ def compute_analysis(code, quote, portfolio):
     else:
         analysis['suggestion'] = '做T' if t_type == 'T+0' else '持有'
         analysis['action'] = '深套做T降本' if t_type == 'T+0' else '持有不动(不割肉)'
-    
-    # Buy/sell points
+
+    # Buy/sell points — paired (买→卖), sell ≥ break-even (用户铁律)
     if t_type == '观望':
         analysis['buy_point'] = f"{bid1:.3f}-{bid1 + 0.005:.3f}"
         analysis['sell_point'] = f"{ask1:.3f}-{ask1 + 0.005:.3f}"
@@ -175,24 +177,26 @@ def compute_analysis(code, quote, portfolio):
             analysis['break_even'] = break_even
             analysis['break_even_note'] = f"保本价{break_even:.4f}超出今日高点{high}，日内难以保本，建议分批做T降本"
         else:
-            analysis['sell_point'] = f"{cur * 1.02:.3f}-{min(break_even, cur * 1.05):.3f}"
+            # 保本价今日可达 → 卖点锚定保本价，卖出即保本（不高于现价+5%）
+            analysis['sell_point'] = f"{break_even:.3f}-{min(break_even + 0.005, cur * 1.05):.3f}"
     elif t_type == 'T+0':
         analysis['buy_point'] = f"{bid1:.3f}-{bid1 + 0.003:.3f}"
         analysis['sell_point'] = f"{ask1:.3f}-{ask1 + 0.003:.3f}"
     else:
         analysis['buy_point'] = f"{bid1:.3f}-{bid1 + 0.005:.3f}"
         analysis['sell_point'] = f"{ask1:.3f}-{ask1 + 0.005:.3f}"
-    
+
     # Stop loss: 成本 × 0.95（用户铁律: 5%无条件清仓线，统一用 0.95 不漂移）
     if cost:
         analysis['stop_loss'] = round(cost * 0.95, 4)
     else:
         analysis['stop_loss'] = None
-    
-    # Most-likely-to-fill sell price
-    analysis['immediate_sell'] = f"{bid1:.3f}"
-    analysis['likely_sell'] = f"{bid1 + 0.001:.3f} ~ {bid1 + 0.003:.3f}"
-    
+
+    # Most-likely-to-fill sell price — anchored to ASK1 (卖一价), not bid1
+    # ponytail: portfolio-monitoring-template.md 明确纠正: "卖出点=卖一价上方0.001~0.005,旧模板写买一价上方是错的"
+    analysis['immediate_sell'] = f"{ask1:.3f}"
+    analysis['likely_sell'] = f"{ask1 + 0.001:.3f} ~ {ask1 + 0.003:.3f}"
+
     return analysis
 
 
@@ -202,12 +206,12 @@ def generate_report(analyses, total_pnl, timestamp):
     lines.append("=" * 70)
     lines.append(f"  ETF持仓实时监控分析 | {timestamp}")
     lines.append("=" * 70)
-    
+
     for a in analyses:
         lines.append(f"\n{'─' * 60}")
         lines.append(f"【{a['code']} {a['name']}】({a['t_type']})")
         lines.append(f"{'─' * 60}")
-        
+
         if a['pnl_pct'] is not None:
             sign = '+' if a['pnl_pct'] >= 0 else ''
             lines.append(f"  成本: {a['cost']}  持仓: {a['shares']:,}份")
@@ -216,7 +220,7 @@ def generate_report(analyses, total_pnl, timestamp):
         else:
             lines.append(f"  现价: {a['current']}  涨跌: {a['change_pct']:+.2f}%")
             lines.append(f"  无持仓，观望")
-        
+
         lines.append(f"  买一: {a['bid1']}  卖一: {a['ask1']}")
         lines.append(f"  今日区间: {a['low']} ~ {a['high']}")
         lines.append(f"  ─────────────────────────────────")
@@ -226,7 +230,7 @@ def generate_report(analyses, total_pnl, timestamp):
         if a['stop_loss']:
             lines.append(f"  ★ 止损价: {a['stop_loss']}  ← 无条件清仓线")
         lines.append(f"  ★ 大概率卖价: {a['likely_sell']} (卖一上方+0.001~0.003)")
-    
+
     lines.append(f"\n{'=' * 70}")
     lines.append(f"汇总:")
     lines.append(f"{'=' * 70}")
@@ -235,7 +239,7 @@ def generate_report(analyses, total_pnl, timestamp):
     lines.append(f"")
     lines.append(f"⚠️ 风险提示：以上建议基于技术面分析，不构成投资建议。")
     lines.append(f"⚠️ 止损价是底线，跌破无条件清仓，不认亏卖是策略不是死扛。")
-    
+
     return '\n'.join(lines)
 
 
@@ -245,7 +249,7 @@ def main():
     if len(sys.argv) > 2 and sys.argv[1] == '--portfolio':
         with open(sys.argv[2], 'r', encoding='utf-8') as f:
             portfolio = json.load(f)
-    
+
     # Build codes string (sh for 51/56/58, sz for 15/16/50)
     codes_parts = []
     for code in portfolio:
@@ -254,10 +258,10 @@ def main():
         else:
             codes_parts.append(f"sz{code}")
     codes_str = ','.join(codes_parts)
-    
+
     # Fetch quotes
     quotes = fetch_quotes(codes_str)
-    
+
     # Analyze each
     analyses = []
     total_pnl = 0.0
@@ -269,10 +273,10 @@ def main():
         analyses.append(a)
         if a['pnl_amt']:
             total_pnl += a['pnl_amt']
-    
+
     # Sort: worst loss first
     analyses.sort(key=lambda x: x['pnl_amt'] if x['pnl_amt'] is not None else 0)
-    
+
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
     report = generate_report(analyses, total_pnl, timestamp)
     print(report)

@@ -24,7 +24,7 @@ SYMS = {
 def fetch_realtime():
     syms = ",".join(SYMS.keys())
     out = subprocess.run(["curl","-s",f"https://qt.gtimg.cn/q={syms}","-H","User-Agent: Mozilla/5.0"],
-                         capture_output=True, text=True, timeout=30).stdout
+                         capture_output=True, timeout=30).stdout.decode("gbk","ignore")
     cur = {}
     for line in out.split(";"):
         m = re.search(r'v_(\w+)="(.*)"', line)
@@ -36,13 +36,14 @@ def fetch_realtime():
     return cur
 
 def fetch_kline(sym):
-    url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},day,,,120,qfq"
+    url = f"https://web.ifzq.gtimg.cn/appstock/app/kline/kline?param={sym},day,,,120"
     out = subprocess.run(["curl","-s",url,"-H","User-Agent: Mozilla/5.0"],
-                         capture_output=True, text=True, timeout=30).stdout
+                         capture_output=True, timeout=30).stdout.decode("gbk","ignore")
     d = json.loads(out)
     node = d["data"][sym]
-    key = "qfqday" if "qfqday" in node else "day"
-    rows = node[key]
+    rows = node.get("day") or node.get("qfqday") or []
+    if not rows:
+        raise ValueError(f"{sym}: K线数据为空")
     closes = [float(r[2]) for r in rows]
     highs = [float(r[3]) for r in rows]
     return closes, highs
@@ -58,7 +59,7 @@ def analyze(sym, cur, targets, N):
     hmu = sum(hr)/len(hr); hvar=sum((r-hmu)**2 for r in hr)/len(hr); hsig=math.sqrt(hvar)
     res = {"code":code,"name":name,"cur":round(cur,4),"mu":round(mu*100,3),"sig":round(sigma*100,3)}
     for t in targets:
-        need = t/cur
+        need = math.log((cur + t) / cur)
         pc = 1 - NormalDist(mu*N, sigma*math.sqrt(N)).cdf(need)
         z = (need - hmu)/hsig; pdh = NormalDist(0,1).cdf(z); pah = 1 - (pdh**N)
         res[f"close_{t}"] = round(pc*100,1)
