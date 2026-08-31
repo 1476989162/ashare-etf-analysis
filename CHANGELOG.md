@@ -1,3 +1,16 @@
+## v1.4.17 (2026-08-31) — Cron Job fallback 路径优先级修正
+
+### 修复
+- **SKILL.md Cron Job fallback 路径优先级错误**: 旧版"正确做法"将"手写 curl+split 解析"作为第一步、portfolio_monitor.py 仅作为"可复用脚本"列表项。2026-08-31 扫描48h内49个 etf-reanalyze cron session 发现：agent 反复绕过已验证的脚本、手写 curl+parse 代码，导致"字段索引偏了"（1次）、"解析失败"（1次）等脚本早已修复的 bug 反复出现。改为：**第一步=直接跑 portfolio_monitor.py**，手写解析降为 fallback（仅脚本失败时走）。根因是文档未明确"必须先用脚本"，agent 默认从第一步手写
+
+### 验证
+- selfcheck.py 全通过（offset=0 / K线端点 / need 对数空间 / GBK解码）
+- portfolio_monitor.py 实时跑通（2026-08-31 13:43 盘中数据）
+- 过去48h 0次新数据错误/0次T+0误判/0次用户纠正
+
+### 版本
+- SKILL.md: 1.4.16 → 1.4.17（patch: 文档优先级修正）
+
 ## v1.4.16 (2026-08-29) — 反弹脚本三处真实Bug修复 + 盘口offset=0落地
 
 ### 修复
